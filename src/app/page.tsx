@@ -65,7 +65,7 @@ export default function HomePage() {
                     <Trophy className="h-4 w-4" aria-hidden="true" />
                     Points
                   </CardTitle>
-                  <CardDescription>Motivating, never punitive.</CardDescription>
+                  <CardDescription>Motivating, never punitive.</CardDescription> // eslint-disable-line react/no-unescaped-entities
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm text-muted-foreground">
@@ -120,7 +120,7 @@ export default function HomePage() {
             <div>
               <h2 className="text-lg font-semibold">Clear expectations</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Everyone sees the same plan—who’s responsible, what’s done, and what’s next.
+                Everyone sees the same plan—who's responsible, what's done, and what's next.
               </p>
             </div>
             <div>

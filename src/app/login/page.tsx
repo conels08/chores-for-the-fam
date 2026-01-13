@@ -1,8 +1,53 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        // Make error messages more user-friendly
+        let errorMessage = authError.message;
+        if (authError.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (authError.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+        setError(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      // Redirect to app on successful login
+      router.push('/app');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <div className="mx-auto max-w-md">
@@ -10,11 +55,16 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle>Sign in</CardTitle>
             <CardDescription>
-              Authentication will be powered by Supabase in the next milestone.
+              Enter your email and password to access your family chore space.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="email">
                   Email
@@ -24,7 +74,9 @@ export default function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -36,22 +88,21 @@ export default function LoginPage() {
                   type="password"
                   placeholder="••••••••"
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </div>
-              <button
-                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground opacity-50"
-                disabled
-              >
-                Coming soon
-              </button>
+              <Button type="submit" className="w-full" disabled={isLoading || !email || !password}>
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </Button>
               <p className="text-sm text-muted-foreground">
                 New here?{' '}
                 <Link href="/signup" className="text-foreground underline underline-offset-4">
                   Create an account
                 </Link>
               </p>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>
