@@ -1,8 +1,16 @@
+'use client';
+
 import Link from 'next/link';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SignupPage() {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implement actual sign-up with Supabase
+    console.log('Signup form submitted');
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <div className="mx-auto max-w-md">
@@ -14,7 +22,7 @@ export default function SignupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="email">
                   Email
@@ -24,7 +32,7 @@ export default function SignupPage() {
                   type="email"
                   placeholder="you@example.com"
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -36,14 +44,14 @@ export default function SignupPage() {
                   type="password"
                   placeholder="••••••••"
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  required
                 />
               </div>
               <button
-                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground opacity-50"
-                disabled
+                type="submit"
+                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
               >
-                Coming soon
+                Create account
               </button>
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
@@ -51,7 +59,7 @@ export default function SignupPage() {
                   Sign in
                 </Link>
               </p>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>
