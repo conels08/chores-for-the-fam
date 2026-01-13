@@ -1,143 +1,119 @@
-import Link from 'next/link';
-import { CalendarDays, CheckCircle2, Sparkles, Trophy } from 'lucide-react';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-export default function HomePage() {
+export default function RootPage() {
   return (
-    <div>
-      <section className="mx-auto max-w-6xl px-4 pb-10 pt-12 sm:pb-16 sm:pt-16">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs text-muted-foreground">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              A supportive family chore workspace
-            </div>
-            <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Chores that feel fair.
-              <span className="block text-muted-foreground">Routines that actually stick.</span>
-            </h1>
-            <p className="max-w-prose text-pretty text-base text-muted-foreground sm:text-lg">
-              ChoreSpace helps families assign chores, track completion, and celebrate progress—without
-              guilt, nagging, or spreadsheets.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/signup"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Create your family space
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-11 items-center justify-center rounded-md border bg-background px-6 text-base font-medium transition-colors hover:bg-muted/60"
-              >
-                Sign in
-              </Link>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Supabase auth & family isolation coming next. This repo is initialized and ready.
-            </p>
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="text-center">
+        <div className="mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-primary-foreground mb-4">
+            <svg
+              className="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
           </div>
+          <h1 className="text-4xl font-bold tracking-tight mb-4">
+            Welcome to ChoreSpace
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8">
+            A shared family space for chores, points, and clarity.
+          </p>
+        </div>
 
-          <div className="rounded-2xl border bg-gradient-to-br from-muted/50 to-background p-6 shadow-sm">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    Chores
-                  </CardTitle>
-                  <CardDescription>Assign, complete, and log progress.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Recurring or one-off tasks</li>
-                    <li>• Deadlines (optional)</li>
-                    <li>• Completion history</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4" aria-hidden="true" />
-                    Points
-                  </CardTitle>
-                  <CardDescription>Motivating, never punitive.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Per-user totals</li>
-                    <li>• Optional leaderboard</li>
-                    <li>• Admin-controlled resets</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    Calendar
-                  </CardTitle>
-                  <CardDescription>One shared family view.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Events managed by parents</li>
-                    <li>• Optional chore deadlines</li>
-                    <li>• Always on “today”</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    Menu
-                  </CardTitle>
-                  <CardDescription>Kids can check what’s available.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Admin-managed meals</li>
-                    <li>• View-only for members</li>
-                    <li>• Simple, clear layout</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+        <div className="mb-12">
+          <p className="text-lg text-muted-foreground mb-6">
+            Simplify family life with chore management, points tracking, and shared planning.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <a
+              href="/signup"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Get Started
+            </a>
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center rounded-md border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted/50"
+            >
+              Sign In
+            </a>
           </div>
         </div>
-      </section>
 
-      <section className="border-t bg-muted/20">
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <div className="grid gap-8 sm:grid-cols-3">
-            <div>
-              <h2 className="text-lg font-semibold">Clear expectations</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Everyone sees the same plan—who’s responsible, what’s done, and what’s next.
-              </p>
+        <div className="grid gap-8 md:grid-cols-3">
+          <div className="text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">Supportive by design</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Points encourage consistency. No negative scores, no shame, and no clutter.
-              </p>
+            <h3 className="text-lg font-semibold mb-2">Assign Chores</h3>
+            <p className="text-muted-foreground">
+              Parents can easily assign and track chores across family members.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">Built for real families</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Mobile-first UX for busy parents and kid-friendly dashboards.
-              </p>
+            <h3 className="text-lg font-semibold mb-2">Earn Points</h3>
+            <p className="text-muted-foreground">
+              Kids complete tasks and earn points for motivation and accountability.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3a4 4 0 118 0v4m-4 12v4m0-12a4 4 0 110 8 4 4 0 010-8z"
+                />
+              </svg>
             </div>
+            <h3 className="text-lg font-semibold mb-2">Stay Organized</h3>
+            <p className="text-muted-foreground">
+              Family calendar, to-do lists, and meal planning all in one place.
+            </p>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

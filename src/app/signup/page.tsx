@@ -1,8 +1,63 @@
+'use client';
+
+export const dynamic = 'force-dynamic';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+import { useAuth } from '@/components/auth/auth-provider';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function SignupPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { signUp } = useAuth();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+      } else {
+        // Show success message instead of redirecting immediately
+        setError(null);
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        alert('Check your email for a confirmation link!');
+        router.push('/login');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <div className="mx-auto max-w-md">
@@ -10,48 +65,67 @@ export default function SignupPage() {
           <CardHeader>
             <CardTitle>Create your account</CardTitle>
             <CardDescription>
-              Soon: sign up creates a family space and makes you the admin by default.
+              Sign up to create your family space and start managing chores together.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="email">
-                  Email
-                </label>
-                <input
+                <Label htmlFor="email">Email</Label>
+                <Input
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="password">
-                  Password
-                </label>
-                <input
+                <Label htmlFor="password">Password</Label>
+                <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
                 />
               </div>
-              <button
-                className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground opacity-50"
-                disabled
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              
+              {error && (
+                <div className="text-sm text-destructive">{error}</div>
+              )}
+              
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
               >
-                Coming soon
-              </button>
+                {isLoading ? 'Creating account...' : 'Create account'}
+              </Button>
+              
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
                 <Link href="/login" className="text-foreground underline underline-offset-4">
                   Sign in
                 </Link>
               </p>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>

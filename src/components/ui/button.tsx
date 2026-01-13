@@ -3,7 +3,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
 };
 
@@ -14,6 +14,7 @@ const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
   secondary: 'bg-muted text-foreground hover:bg-muted/80',
   ghost: 'hover:bg-muted/70',
+  destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
 };
 
 const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
