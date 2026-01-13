@@ -19,18 +19,16 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (!userLoading && !appUser) {
-      router.push('/app');
-      return;
-    }
-
-    if (appUser && appUser.role !== 'admin') {
-      router.push('/app');
-      return;
-    }
-
-    if (appUser) {
-      setFamilyName(appUser.family_name);
+    if (!userLoading) {
+      if (!appUser) {
+        router.push('/app');
+        return;
+      } else if (appUser.role !== 'admin') {
+        router.push('/app');
+        return;
+      } else {
+        setFamilyName(appUser.family_name);
+      }
     }
   }, [appUser, userLoading, router]);
 

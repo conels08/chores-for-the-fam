@@ -13,8 +13,14 @@ export default function AppDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !appUser && !error) {
-      router.push('/login');
+    if (!loading) {
+      if (error) {
+        // Profile doesn't exist - redirect to login with error
+        router.push('/login?error=no_profile');
+      } else if (!appUser) {
+        // Not authenticated
+        router.push('/login');
+      }
     }
   }, [loading, appUser, error, router]);
 

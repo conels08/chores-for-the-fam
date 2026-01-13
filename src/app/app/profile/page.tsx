@@ -19,13 +19,13 @@ export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (!userLoading && !appUser) {
-      router.push('/app');
-      return;
-    }
-
-    if (appUser) {
-      setDisplayName(appUser.display_name || '');
+    if (!userLoading) {
+      if (!appUser) {
+        router.push('/app');
+        return;
+      } else {
+        setDisplayName(appUser.display_name || '');
+      }
     }
   }, [appUser, userLoading, router]);
 
