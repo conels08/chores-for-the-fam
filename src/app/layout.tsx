@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { SiteFooter } from '@/components/site/site-footer';
 import { SiteHeader } from '@/components/site/site-header';
+import { UserProvider } from '@/context/UserContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -23,11 +24,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        <div className="flex min-h-dvh flex-col">
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
+        <UserProvider>
+          <div className="flex min-h-dvh flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+        </UserProvider>
       </body>
     </html>
   );
