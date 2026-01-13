@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/auth/client';
 import type { User } from '@supabase/supabase-js';
 import type { AppUser } from '@/lib/database/types';
@@ -22,6 +22,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track mounted state and prevent race conditions
+  const mountedRef = useRef(true);
+  const loadingProfileRef = useRef<Promise<void> | null>(null);
+
   const loadUserProfile = async (user: User | null) => {
     if (!user) {
       setAuthUser(null);
@@ -29,21 +33,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    try {
-      const profileWithFamily = await getProfileWithFamily(user.id);
-
-      if (profileWithFamily) {
-        setAppUser(toAppUser(profileWithFamily));
-      } else {
-        // Profile does not exist - edge case
-        setError(
-          'Your profile was not found. Please contact an administrator.'
-        );
+    // Avoid concurrent profile loads for the same user
+    if (loadingProfileRef.current) {
+      await loadingProfileRef.current;
+      if (authUser?.id === user.id) {
+        return; // Profile already loaded for this user
       }
-    } catch (err) {
-      console.error('Error loading profile:', err);
-      setError('Failed to load your profile. Please try again.');
     }
+
+    const loadPromise = (async () => {
+      try {
+        const profileWithFamily = await getProfileWithFamily(user.id);
+
+        if (!mountedRef.current) return;
+
+        if (profileWithFamily) {
+          setAppUser(toAppUser(profileWithFamily));
+        } else {
+          // Profile does not exist - edge case
+          setError(
+            'Your profile was not found. Please contact an administrator.'
+          );
+        }
+      } catch (err) {
+        console.error('Error loading profile:', err);
+        if (mountedRef.current) {
+          setError('Failed to load your profile. Please try again.');
+        }
+      }
+    })();
+
+    loadingProfileRef.current = loadPromise;
+    await loadPromise;
+    loadingProfileRef.current = null;
   };
 
   const refreshProfile = async () => {
@@ -53,14 +75,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+
+    let initialized = false;
 
     const initializeAuth = async () => {
+      // Prevent duplicate initialization
+      if (initialized) return;
+      initialized = true;
+
       try {
         // Get initial session
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mountedRef.current) return;
 
         setAuthUser(session?.user || null);
 
@@ -69,11 +97,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
-        if (mounted) {
+        if (mountedRef.current) {
           setError('Failed to initialize authentication');
         }
       } finally {
-        if (mounted) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
@@ -83,7 +111,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (!mountedRef.current) return;
 
       setAuthUser(session?.user || null);
       setError(null);
@@ -96,7 +124,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
   }, []);
