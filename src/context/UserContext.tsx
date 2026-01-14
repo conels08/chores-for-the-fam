@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase, devOnlyAuthLog } from '@/lib/auth/client';
 import type { User } from '@supabase/supabase-js';
 import type { AppUser } from '@/lib/database/types';
@@ -27,7 +27,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const loadingProfileRef = useRef<Promise<void> | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
-  const loadUserProfile = async (user: User | null) => {
+  const loadUserProfile = useCallback(async (user: User | null) => {
     if (!user) {
       setAuthUser(null);
       setAppUser(null);
@@ -77,14 +77,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     loadingProfileRef.current = loadPromise;
     await loadPromise;
     loadingProfileRef.current = null;
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (authUser) {
       devOnlyAuthLog('🔄 Refreshing profile');
       await loadUserProfile(authUser);
     }
-  };
+  }, [authUser, loadUserProfile]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -164,7 +164,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         subscriptionRef.current = null;
       }
     };
-  }, []);
+  }, [loadUserProfile, mountedRef]);
 
   return (
     <UserContext.Provider value={{ authUser, appUser, loading, error, refreshProfile }}>
