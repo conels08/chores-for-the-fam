@@ -96,10 +96,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Admin Badge */}
-      <Card className="p-4 bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900">
+      <Card className="p-4 bg-purple-100 dark:bg-purple-900/50 border-purple-200 dark:border-purple-700">
         <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-          <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+          <Shield className="h-5 w-5 text-purple-700 dark:text-purple-200" />
+          <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
             You are viewing this page as an admin
           </span>
         </div>
@@ -133,8 +133,8 @@ export default function SettingsPage() {
           )}
 
           {saveSuccess && (
-            <div className="rounded-md border border-green-500/50 bg-green-500/10 px-4 py-3">
-              <p className="text-sm text-green-700 dark:text-green-300">
+            <div className="rounded-md border border-green-500/50 bg-green-500/15 px-4 py-3">
+              <p className="text-sm text-green-900 dark:text-green-100">
                 Family name updated successfully!
               </p>
             </div>

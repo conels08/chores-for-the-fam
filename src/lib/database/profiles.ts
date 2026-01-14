@@ -2,10 +2,8 @@
  * Database operations for profiles and families
  */
 
-import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { supabase } from '@/lib/auth/client';
 import type { DatabaseProfile, DatabaseFamily, ProfileWithFamily, AppUser } from './types';
-
-const supabase = createSupabaseBrowserClient();
 
 /**
  * Fetch a profile by user ID (auth.uid())

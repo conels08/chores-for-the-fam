@@ -130,8 +130,8 @@ export default function ProfilePage() {
           )}
 
           {saveSuccess && (
-            <div className="rounded-md border border-green-500/50 bg-green-500/10 px-4 py-3">
-              <p className="text-sm text-green-700 dark:text-green-300">
+            <div className="rounded-md border border-green-500/50 bg-green-500/15 px-4 py-3">
+              <p className="text-sm text-green-900 dark:text-green-100">
                 Display name updated successfully!
               </p>
             </div>
