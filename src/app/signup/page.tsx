@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +15,13 @@ export default function SignupPage() {
   const router = useRouter();
   const { authUser, loading: authLoading } = useUser();
 
+  // Prevent multiple redirect calls (flicker fix)
+  const didRedirectRef = useRef(false);
+
   // Redirect to app if already signed in
   useEffect(() => {
-    if (!authLoading && authUser) {
+    if (!authLoading && authUser && !didRedirectRef.current) {
+      didRedirectRef.current = true;
       router.push('/app');
     }
   }, [authUser, authLoading, router]);
@@ -28,20 +32,25 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      const { supabase } = await import('@/lib/auth/client');
+      const { supabase, devOnlyAuthLog } = await import('@/lib/auth/client');
+      devOnlyAuthLog('📝 Sign up request for:', email);
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (authError) {
+        devOnlyAuthLog('❌ Sign up failed:', authError.message);
         setError(authError.message);
         return;
       }
 
+      devOnlyAuthLog('✅ Sign up successful');
       // Redirect to app on successful signup
       router.push('/app');
     } catch (err) {
+      const { devOnlyAuthLog: log } = await import('@/lib/auth/client');
+      log('❌ Sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
       console.error('Signup error:', err);
     } finally {

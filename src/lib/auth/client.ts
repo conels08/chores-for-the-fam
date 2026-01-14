@@ -11,11 +11,19 @@ declare global {
   var __supabase__: SupabaseClient | undefined;
 }
 
+// Dev-only logging helper
+const devLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Supabase Auth]', ...args);
+  }
+};
+
 // Create or retrieve cached client instance
 const getSupabaseClient = (): SupabaseClient => {
   if (typeof window !== 'undefined') {
     // Client-side: check globalThis cache
     if (!globalThis.__supabase__) {
+      devLog('🔧 Creating new browser Supabase client (singleton)');
       globalThis.__supabase__ = createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
           persistSession: true,
@@ -23,11 +31,17 @@ const getSupabaseClient = (): SupabaseClient => {
           detectSessionInUrl: true,
         },
       });
+    } else {
+      devLog('✅ Reusing existing browser Supabase client');
     }
     return globalThis.__supabase__;
   }
   // Server-side or SSR: create new instance
+  devLog('🖥️  Creating server Supabase client');
   return createClient(supabaseUrl, supabaseAnonKey);
 };
 
 export const supabase = getSupabaseClient();
+
+// Export dev-only logger for UserContext
+export { devLog as devOnlyAuthLog };

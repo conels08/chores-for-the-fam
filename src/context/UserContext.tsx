@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { supabase } from '@/lib/auth/client';
+import { supabase, devOnlyAuthLog } from '@/lib/auth/client';
 import type { User } from '@supabase/supabase-js';
 import type { AppUser } from '@/lib/database/types';
 import { getProfileWithFamily, toAppUser } from '@/lib/database/profiles';
@@ -25,6 +25,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Track mounted state and prevent race conditions
   const mountedRef = useRef(true);
   const loadingProfileRef = useRef<Promise<void> | null>(null);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   const loadUserProfile = async (user: User | null) => {
     if (!user) {
@@ -37,9 +38,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (loadingProfileRef.current) {
       await loadingProfileRef.current;
       if (authUser?.id === user.id) {
+        devOnlyAuthLog('⏭️  Profile already loaded for user:', user.id);
         return; // Profile already loaded for this user
       }
     }
+
+    devOnlyAuthLog('📥 Loading profile for user:', user.id);
 
     const loadPromise = (async () => {
       try {
@@ -49,13 +53,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         if (profileWithFamily) {
           setAppUser(toAppUser(profileWithFamily));
+          devOnlyAuthLog('✅ Profile loaded successfully');
         } else {
           // Profile does not exist - edge case
           setError(
             'Your profile was not found. Please contact an administrator.'
           );
+          devOnlyAuthLog('❌ Profile not found');
         }
       } catch (err) {
+        // Silently ignore AbortError (expected on unmount/navigation)
+        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
+          devOnlyAuthLog('⚠️  Profile load aborted (expected on navigation)');
+          return;
+        }
         console.error('Error loading profile:', err);
         if (mountedRef.current) {
           setError('Failed to load your profile. Please try again.');
@@ -70,6 +81,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (authUser) {
+      devOnlyAuthLog('🔄 Refreshing profile');
       await loadUserProfile(authUser);
     }
   };
@@ -81,8 +93,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       // Prevent duplicate initialization
-      if (initialized) return;
+      if (initialized) {
+        devOnlyAuthLog('⚠️  Auth already initialized, skipping');
+        return;
+      }
       initialized = true;
+
+      devOnlyAuthLog('🚀 Initializing auth...');
 
       try {
         // Get initial session
@@ -93,9 +110,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setAuthUser(session?.user || null);
 
         if (session?.user) {
+          devOnlyAuthLog('✅ Initial session found for user:', session.user.id);
           await loadUserProfile(session.user);
+        } else {
+          devOnlyAuthLog('ℹ️  No active session');
         }
       } catch (err) {
+        // Silently ignore AbortError (expected on unmount/navigation)
+        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
+          devOnlyAuthLog('⚠️  Auth initialization aborted (expected on navigation)');
+          if (mountedRef.current) {
+            setLoading(false);
+          }
+          return;
+        }
         console.error('Auth initialization error:', err);
         if (mountedRef.current) {
           setError('Failed to initialize authentication');
@@ -110,7 +138,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     // Listen for auth state changes
+    devOnlyAuthLog('📡 Attaching onAuthStateChange listener');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      devOnlyAuthLog('🔄 Auth state changed:', event, session?.user?.id || '(no user)');
+
       if (!mountedRef.current) return;
 
       setAuthUser(session?.user || null);
@@ -123,9 +154,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    subscriptionRef.current = subscription;
+
     return () => {
+      devOnlyAuthLog('🔌 Detaching onAuthStateChange listener');
       mountedRef.current = false;
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     };
   }, []);
 

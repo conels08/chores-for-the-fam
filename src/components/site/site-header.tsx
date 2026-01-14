@@ -8,11 +8,14 @@ export function SiteHeader() {
   const { authUser, loading } = useUser();
 
   const handleSignOut = async () => {
-    const { supabase } = await import('@/lib/auth/client');
+    const { supabase, devOnlyAuthLog } = await import('@/lib/auth/client');
+    devOnlyAuthLog('👋 Sign out requested');
     try {
       await supabase.auth.signOut();
+      devOnlyAuthLog('✅ Sign out successful, redirecting to /login');
       window.location.href = '/login';
     } catch (error) {
+      devOnlyAuthLog('❌ Sign out error:', error);
       console.error('Sign out error:', error);
     }
   };

@@ -1,13 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
-
-import { getSupabaseEnv } from '@/lib/supabase/env';
-
 /**
- * Creates a Supabase client for use in the browser (Client Components).
+ * Re-exports the canonical browser Supabase client singleton.
  *
- * Note: this will throw until you configure env vars.
+ * All browser-side code should import from this module to ensure
+ * only ONE Supabase client instance exists at runtime.
+ *
+ * The singleton is defined in src/lib/auth/client.ts with globalThis caching
+ * to prevent multiple instances during HMR.
  */
-export function createSupabaseBrowserClient() {
-  const { url, anonKey } = getSupabaseEnv();
-  return createClient(url, anonKey);
-}
+export { supabase as createSupabaseBrowserClient } from '@/lib/auth/client';
+export { supabase } from '@/lib/auth/client';

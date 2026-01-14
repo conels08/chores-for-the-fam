@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useUser } from '@/context/UserContext';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,9 +16,13 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { authUser, loading: authLoading } = useUser();
 
+  // Prevent multiple redirect calls (flicker fix)
+  const didRedirectRef = useRef(false);
+
   // Redirect to app if already signed in
   useEffect(() => {
-    if (!authLoading && authUser) {
+    if (!authLoading && authUser && !didRedirectRef.current) {
+      didRedirectRef.current = true;
       router.push('/app');
       return;
     }
@@ -37,20 +41,26 @@ function LoginForm() {
     setError(null);
 
     try {
-      const { supabase } = await import('@/lib/auth/client');
+      const { supabase, devOnlyAuthLog } = await import('@/lib/auth/client');
+      devOnlyAuthLog('🔐 Sign in request for:', email);
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) {
+        devOnlyAuthLog('❌ Sign in failed:', authError.message);
         setError(authError.message);
         return;
       }
 
+      devOnlyAuthLog('✅ Sign in successful');
       // Redirect to app on successful login
       router.push('/app');
     } catch (err) {
+      // Import devOnlyAuthLog in catch block since it might not be in scope if import failed
+      const { devOnlyAuthLog: log } = await import('@/lib/auth/client');
+      log('❌ Sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
       console.error('Login error:', err);
     } finally {
