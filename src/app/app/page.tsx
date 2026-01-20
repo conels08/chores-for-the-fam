@@ -1,8 +1,7 @@
 'use client';
 
 import { useUser } from '@/context/UserContext';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Settings, User as UserIcon, CheckSquare, Calendar, Star, Utensils } from 'lucide-react';
@@ -11,23 +10,12 @@ import type { UserPointsSummary } from '@/lib/database/types';
 import Link from 'next/link';
 
 export default function AppDashboard() {
-  const { appUser, loading, error } = useUser();
-  const router = useRouter();
+  const { appUser, loading, error, isProfileReady, refreshProfile } = useUser();
   const [myPoints, setMyPoints] = useState<UserPointsSummary | null>(null);
   const [familyPoints, setFamilyPoints] = useState<UserPointsSummary[]>([]);
   const [loadingPoints, setLoadingPoints] = useState(false);
-
-  useEffect(() => {
-    if (!loading) {
-      if (error) {
-        // Profile doesn't exist - redirect to login with error
-        router.push('/login?error=no_profile');
-      } else if (!appUser) {
-        // Not authenticated
-        router.push('/login');
-      }
-    }
-  }, [loading, appUser, error, router]);
+  const [pointsError, setPointsError] = useState<string | null>(null);
+  const hasAttemptedPointsRef = useRef(false);
 
   const loadPoints = useCallback(async () => {
     if (!appUser) return;
@@ -42,18 +30,29 @@ export default function AppDashboard() {
       // Load family leaderboard
       const familyPointsData = await getPointsTotals(appUser.family_id);
       setFamilyPoints(familyPointsData);
-    } catch (err) {
-      console.error('Error loading points:', err);
     } finally {
       setLoadingPoints(false);
     }
   }, [appUser]);
 
   useEffect(() => {
-    if (appUser) {
-      loadPoints();
-    }
-  }, [appUser, loadPoints]);
+    if (!isProfileReady) return;
+    if (document.visibilityState !== "visible") return;
+    if (hasAttemptedPointsRef.current) return;
+    if (pointsError) return;
+
+    hasAttemptedPointsRef.current = true;
+
+    loadPoints().catch((err) => {
+      console.error("Error loading points:", err);
+      setPointsError("Failed to load points. Please retry.");
+    });
+  }, [isProfileReady, pointsError, loadPoints]);
+
+  const retryLoadPoints = () => {
+    setPointsError(null);
+    hasAttemptedPointsRef.current = false;
+  };
 
   if (loading || loadingPoints) {
     return (
@@ -71,6 +70,11 @@ export default function AppDashboard() {
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6">
         <h2 className="text-lg font-semibold text-destructive mb-2">Error Loading Profile</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" size="sm" onClick={refreshProfile}>
+            Retry
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           If this problem persists, please contact an administrator.
         </p>
@@ -153,59 +157,70 @@ export default function AppDashboard() {
         </div>
       </Card>
 
-      {/* Points Overview */}
-      {myPoints && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
-                <Star className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Your Points</h2>
-                <p className="text-sm text-muted-foreground">
-                  {myPoints.completed_chores} chores completed
-                </p>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-yellow-600">
-              {myPoints.total_points}
-            </div>
-          </Card>
-
-          {appUser.role === 'admin' && familyPoints.length > 0 && (
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                  <CheckSquare className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold">Family Leaderboard</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Top performers this month
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {familyPoints.slice(0, 3).map((member, index) => (
-                  <div key={member.profile_id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                        {index + 1}
-                      </span>
-                      <span className="font-medium">
-                        {member.display_name || member.profile_id.slice(0, 8)}
-                      </span>
-                    </div>
-                    <span className="font-semibold text-muted-foreground">
-                      {member.total_points} pts
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+      {pointsError ? (
+        <div className="error-box">
+          <p>{pointsError}</p>
+          <Button variant="secondary" size="sm" onClick={retryLoadPoints}>
+            Retry
+          </Button>
         </div>
+      ) : (
+        <>
+          {/* Points Overview */}
+          {myPoints && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
+                    <Star className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold">Your Points</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {myPoints.completed_chores} chores completed
+                    </p>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-yellow-600">
+                  {myPoints.total_points}
+                </div>
+              </Card>
+
+              {appUser.role === 'admin' && familyPoints.length > 0 && (
+                <Card className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      <CheckSquare className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold">Family Leaderboard</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Top performers this month
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {familyPoints.slice(0, 3).map((member, index) => (
+                      <div key={member.profile_id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium">
+                            {member.display_name || member.profile_id.slice(0, 8)}
+                          </span>
+                        </div>
+                        <span className="font-semibold text-muted-foreground">
+                          {member.total_points} pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Welcome Message */}

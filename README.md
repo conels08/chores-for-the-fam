@@ -13,17 +13,22 @@ Open http://localhost:3000
 
 ## Project structure
 
-- `src/app` – Next.js App Router routes, layouts, and pages
+- `src/app` – Next.js App Router routes, layouts, middleware, and top-level pages
+- `src/app/app` – authenticated app area (chores, profile, settings)
 - `src/components` – shared UI + site components
-- `src/lib` – utilities and integrations (Supabase scaffolding lives here)
+- `src/context` – React context providers (user/session state)
+- `src/lib/auth` – auth helpers and Supabase client setup
+- `src/lib/database` – data access for chores, assignments, points, etc.
+- `src/lib/supabase` – Supabase helpers and types
+- `src/lib/utils.ts` – shared utilities
 
-## Supabase (future)
+## Supabase
 
-This repo includes lightweight client/server helpers under `src/lib/supabase/*`.
+This repo uses Supabase for auth and data. Helpers live under `src/lib/auth/*` and `src/lib/supabase/*`.
 
-When you add Supabase later, you’ll typically configure:
+You'll typically configure:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-(Env vars are intentionally not included yet.)
+(Env vars are intentionally not included.)

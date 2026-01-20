@@ -17,6 +17,8 @@ import type {
   AppUser
 } from './types';
 
+let inFlightMyPoints: Promise<UserPointsSummary> | null = null;
+
 /**
  * Get chores assigned to the current user
  */
@@ -26,7 +28,12 @@ export async function listMyAssignedChores(profileId: string, familyId: string) 
       .from('chore_assignments')
       .select(`
         *,
-        chore:chore_id (
+        completions:chore_completions!left (
+          id,
+          completed_by,
+          completed_at
+        ),
+        chore:chore_id!inner (
           *,
           assignments:chore_assignments (
             *,
@@ -45,8 +52,9 @@ export async function listMyAssignedChores(profileId: string, familyId: string) 
       `)
       .eq('assignee_profile_id', profileId)
       .eq('chore.is_active', true)
-      .order('chore.due_date', { ascending: true, nullsFirst: false })
-      .order('chore.created_at', { ascending: false });
+      .is('chore_completions.id', null)
+      .order('due_date', { referencedTable: 'chore', ascending: true, nullsFirst: false })
+      .order('created_at', { referencedTable: 'chore', ascending: false })
 
     if (error) {
       throw error;
@@ -383,14 +391,14 @@ export async function listChoreCompletions(
       .from('chore_completions')
       .select(`
         *,
-        assignment:assignment_id (
+        assignment:assignment_id!inner (
           *,
           assignee:assignee_profile_id (
             id,
             display_name,
             role
           ),
-          chore:chore_id (
+          chore:chore_id!inner (
             id,
             title,
             points,
@@ -413,6 +421,9 @@ export async function listChoreCompletions(
     
     if (data) {
       data.forEach((completion: any) => {
+        if (!completion.assignment || !completion.assignment.chore) {
+          return;
+        }
         completionsWithDetails.push({
           ...completion,
           assignment: {
@@ -457,33 +468,41 @@ export async function getPointsTotals(familyId: string) {
  * Get points for current user
  */
 export async function getMyPoints(profileId: string, familyId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('user_points_summary')
-      .select('*')
-      .eq('profile_id', profileId)
-      .eq('family_id', familyId)
-      .single();
+  if (inFlightMyPoints) return inFlightMyPoints;
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return {
-          profile_id: profileId,
-          display_name: null,
-          role: 'member' as const,
-          family_id: familyId,
-          total_points: 0,
-          completed_chores: 0
-        };
+  inFlightMyPoints = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_points_summary')
+        .select('*')
+        .eq('profile_id', profileId)
+        .eq('family_id', familyId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return {
+            profile_id: profileId,
+            display_name: null,
+            role: 'member' as const,
+            family_id: familyId,
+            total_points: 0,
+            completed_chores: 0
+          };
+        }
+        throw error;
       }
-      throw error;
-    }
 
-    return data as UserPointsSummary;
-  } catch (error) {
-    console.error('Error fetching my points:', error);
-    throw error;
-  }
+      return data as UserPointsSummary;
+    } catch (error) {
+      console.error('Error fetching my points:', error);
+      throw error;
+    } finally {
+      inFlightMyPoints = null;
+    }
+  })();
+
+  return inFlightMyPoints;
 }
 
 /**

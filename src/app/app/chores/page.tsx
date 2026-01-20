@@ -72,6 +72,7 @@ export default function ChoresPage() {
 
   const handleCompleteChore = async (assignmentId: string) => {
     if (!appUser) return;
+    if (!assignmentId) return;
 
     try {
       setCompletingIds(prev => new Set(prev).add(assignmentId));
@@ -242,6 +243,15 @@ export default function ChoresPage() {
               {myChores.map((chore) => {
                 const dueDateInfo = formatDueDate(chore.due_date);
                 const status = getChoreStatus(chore);
+                const myAssignment =
+                  chore.assignments?.find(a =>
+                    a.assignee_profile_id === appUser?.id ||
+                    a.assignee?.id === appUser?.id
+                  ) ?? null;
+                const assignmentId = myAssignment?.id ?? '';
+                const isCompleted = (myAssignment?.completions?.length ?? 0) > 0;
+
+                if (isCompleted) return null;
                 
                 return (
                   <Card key={chore.id} className="hover:shadow-md transition-shadow">
@@ -279,11 +289,13 @@ export default function ChoresPage() {
                         </div>
                         
                         <Button
-                          onClick={() => handleCompleteChore(chore.assignments[0]?.id || '')}
-                          disabled={completingIds.has(chore.assignments[0]?.id || '')}
+                          onClick={() => handleCompleteChore(assignmentId)}
+                          disabled={!assignmentId || isCompleted || completingIds.has(assignmentId)}
                           className="ml-4"
                         >
-                          {completingIds.has(chore.assignments[0]?.id || '') ? (
+                          {isCompleted ? (
+                            'Completed'
+                          ) : completingIds.has(assignmentId) ? (
                             'Completing...'
                           ) : (
                             <>

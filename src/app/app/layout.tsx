@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import SessionRefreshListener from '@/components/SessionRefreshListener';
 
 export const metadata: Metadata = {
   title: 'Dashboard | ChoreSpace',
@@ -12,6 +13,7 @@ export default function AppLayout({
 }>) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <SessionRefreshListener />
       {children}
     </div>
   );
