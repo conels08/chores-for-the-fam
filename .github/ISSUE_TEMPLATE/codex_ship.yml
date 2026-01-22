@@ -1,0 +1,109 @@
+name: "Codex Ship Issue"
+description: "A structured issue format optimized for Codex Web to deliver clean PRs."
+title: "fix: <short, specific outcome>"
+labels: ["codex"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Instructions
+        Fill this out as precisely as possible. Codex will use this to create a focused PR.
+        Keep scope small: one bug or one feature per issue.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal (what should be true after this PR?)
+      description: Write the expected behavior in 1–3 sentences.
+      placeholder: "After completing a chore, it disappears from My Chores immediately and shows completed state in All Family Chores."
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior
+      description: What happens now?
+      placeholder: "Chore remains in My Chores with no completed styling."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: Numbered steps to reproduce the bug reliably.
+      placeholder: |
+        1) Log in as Kid
+        2) Go to /app/chores
+        3) Click Complete on a chore
+        4) Observe chore still visible without completed UI
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen instead?
+      placeholder: "After completion, chore is removed from My Chores immediately and Complete button is disabled/hidden."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope boundaries
+      description: Explicitly list what is IN scope and OUT of scope.
+      placeholder: |
+        IN: UI update after completion; no backend schema changes.
+        OUT: Redesigning the chores page layout; adding new tables.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints / non-goals
+      description: Any must-follow rules (no refactor, no new deps, etc.).
+      placeholder: |
+        - No major refactor
+        - No router.refresh loops
+        - Keep changes reversible
+        - Prefer client-side fix first
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Suspected files (optional)
+      description: If you know likely files, list them.
+      placeholder: |
+        src/app/app/chores/page.tsx
+        src/lib/database/chores.ts
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots (optional)
+      description: Paste relevant console logs, network errors, or link screenshots.
+      placeholder: "Paste console errors or describe what you saw in Network tab."
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance checklist
+      description: What must be verified before merging?
+      value: |
+        - [ ] Repro no longer occurs after fix
+        - [ ] No redirect / fetch / render loops
+        - [ ] PR includes clear “How to test”
+        - [ ] Minimal diff; no unrelated formatting
+        - [ ] Works after tab switch + return (if relevant)
+    validations:
+      required: true
