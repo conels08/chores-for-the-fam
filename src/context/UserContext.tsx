@@ -12,6 +12,7 @@ type UserContextType = {
   appUser: AppUser | null;
   loading: boolean;
   error: string | null;
+  profileStatus: 'idle' | 'loading' | 'rehydrating' | 'ready' | 'error';
   refreshProfile: () => Promise<void>;
   isProfileReady: boolean;
   authReady: boolean;
@@ -24,6 +25,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'rehydrating' | 'ready' | 'error'>('idle');
   const [authReady, setAuthReady] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -31,18 +33,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const BASE_PROFILE_TIMEOUT_MS = 4000;
   const REHYDRATION_GRACE_MS = 1000;
 
-  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), ms)
-      ),
-    ]);
-  };
-
   // Track mounted state and prevent race conditions
   const mountedRef = useRef(true);
-  const loadingProfileRef = useRef<Promise<void> | null>(null);
+  const inFlightProfilePromiseRef = useRef<Promise<void> | null>(null);
+  const inFlightProfileRequestIdRef = useRef<number | null>(null);
+  const inFlightProfileUserIdRef = useRef<string | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const profileRequestIdRef = useRef(0);
   const pathnameRef = useRef<string | null>(null);
@@ -122,62 +117,148 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       setAuthUser(null);
       setAppUser(null);
+      setError(null);
+      setProfileStatus('idle');
+      setLoading(false);
       profileRequestIdRef.current += 1;
       return;
     }
 
-    // Avoid concurrent profile loads for the same user
-    if (loadingProfileRef.current) {
-      await loadingProfileRef.current;
-      if (authUser?.id === user.id) {
-        devOnlyAuthLog('⏭️  Profile already loaded for user:', user.id);
-        return; // Profile already loaded for this user
+    if (inFlightProfilePromiseRef.current) {
+      if (inFlightProfileUserIdRef.current !== user.id) {
+        devOnlyAuthLog('⏳ Waiting for in-flight profile request (different user)', {
+          requestId: inFlightProfileRequestIdRef.current,
+          inFlightUserId: inFlightProfileUserIdRef.current,
+          userId: user.id
+        });
+        await inFlightProfilePromiseRef.current;
+        if (authUserRef.current?.id !== user.id || !mountedRef.current) {
+          devOnlyAuthLog('🧊 Skipping follow-up profile load after in-flight completion', {
+            requestId: inFlightProfileRequestIdRef.current,
+            userId: user.id
+          });
+          return;
+        }
+        return loadUserProfile(user);
       }
+      devOnlyAuthLog('⏳ Reusing in-flight profile request', {
+        requestId: inFlightProfileRequestIdRef.current,
+        userId: user.id
+      });
+      return inFlightProfilePromiseRef.current;
     }
 
-    devOnlyAuthLog('📥 Loading profile for user:', user.id);
-
+    const inRehydration = isInRehydrationGraceWindow() || rehydratingRef.current;
     const requestId = (profileRequestIdRef.current += 1);
+    inFlightProfileRequestIdRef.current = requestId;
+    inFlightProfileUserIdRef.current = user.id;
+    const timeoutMs = getProfileTimeoutMs();
+    setError(null);
+    setProfileStatus(inRehydration ? 'rehydrating' : 'loading');
+    setLoading(true);
+    devOnlyAuthLog('📥 Profile load start', {
+      requestId,
+      userId: user.id,
+      inRehydration,
+      timeoutMs
+    });
+
     const loadPromise = (async () => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let timedOut = false;
       try {
-        const profileWithFamily = await getProfileWithFamily(user.id);
+        const profilePromise = getProfileWithFamily(user.id);
+        const timeoutPromise = new Promise<'timeout'>((resolve) => {
+          timeoutId = setTimeout(() => {
+            timedOut = true;
+            resolve('timeout');
+          }, timeoutMs);
+        });
+        const raceResult = await Promise.race([
+          profilePromise.then(() => 'resolved'),
+          timeoutPromise
+        ]);
+        if (raceResult === 'timeout') {
+          devOnlyAuthLog('⏱️  Profile load timed out', { requestId, timeoutMs });
+          if (mountedRef.current && requestId === profileRequestIdRef.current) {
+            if (shouldCommitProfileError()) {
+              setError('Session sync timed out. Please try again.');
+              setProfileStatus('error');
+              setLoading(false);
+              devOnlyAuthLog('🧱 Timeout error applied', { requestId });
+            } else {
+              setProfileStatus('rehydrating');
+              setLoading(true);
+              devOnlyAuthLog('🕰️  Timeout ignored during rehydration', { requestId });
+            }
+          } else {
+            devOnlyAuthLog('🧊 Timeout result ignored (stale)', { requestId });
+          }
+        }
+
+        const profileWithFamily = await profilePromise;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
 
         if (!mountedRef.current) return;
-        if (requestId !== profileRequestIdRef.current) return;
+        if (requestId !== profileRequestIdRef.current) {
+          devOnlyAuthLog('🧊 Profile result ignored (stale)', { requestId });
+          return;
+        }
 
         if (profileWithFamily) {
           setAppUser(toAppUser(profileWithFamily));
           setError(null);
-          devOnlyAuthLog('✅ Profile loaded successfully');
+          setProfileStatus('ready');
+          setLoading(false);
+          devOnlyAuthLog('✅ Profile loaded successfully', { requestId, timedOut });
         } else {
           // Profile does not exist - edge case
           if (requestId === profileRequestIdRef.current) {
             setError(
               'Your profile was not found. Please contact an administrator.'
             );
-            devOnlyAuthLog('❌ Profile not found');
+            setProfileStatus('error');
+            setLoading(false);
+            devOnlyAuthLog('❌ Profile not found', { requestId });
           }
         }
       } catch (err) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         // Silently ignore AbortError (expected on unmount/navigation)
         if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
-          devOnlyAuthLog('⚠️  Profile load aborted (expected on navigation)');
+          devOnlyAuthLog('⚠️  Profile load aborted (expected on navigation)', { requestId });
           return;
         }
         console.error('Error loading profile:', err);
-        if (mountedRef.current && requestId === profileRequestIdRef.current) {
-          if (!shouldCommitProfileError()) {
-            devOnlyAuthLog('⏳ Skipping profile error during rehydration grace window');
-            return;
-          }
-          setError('Failed to load your profile. Please try again.');
+        if (!mountedRef.current) return;
+        if (requestId !== profileRequestIdRef.current) {
+          devOnlyAuthLog('🧊 Profile error ignored (stale)', { requestId });
+          return;
         }
+        if (!shouldCommitProfileError()) {
+          setProfileStatus('rehydrating');
+          setLoading(true);
+          devOnlyAuthLog('⏳ Skipping profile error during rehydration grace window', { requestId });
+          return;
+        }
+        setError('Failed to load your profile. Please try again.');
+        setProfileStatus('error');
+        setLoading(false);
+        devOnlyAuthLog('❌ Profile load failed', { requestId });
       }
     })();
 
-    loadingProfileRef.current = loadPromise;
+    inFlightProfilePromiseRef.current = loadPromise;
     await loadPromise;
-    loadingProfileRef.current = null;
+    if (inFlightProfilePromiseRef.current === loadPromise) {
+      inFlightProfilePromiseRef.current = null;
+      inFlightProfileRequestIdRef.current = null;
+      inFlightProfileUserIdRef.current = null;
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -223,11 +304,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               devOnlyAuthLog('⏳ Rehydration grace: delaying profile load by', delayMs, 'ms');
               await new Promise(resolve => setTimeout(resolve, delayMs));
             }
-            const timeoutMs = getProfileTimeoutMs();
-            if (timeoutMs > BASE_PROFILE_TIMEOUT_MS) {
-              devOnlyAuthLog('⏳ Rehydration grace: extending profile timeout to', timeoutMs, 'ms');
-            }
-            await withTimeout(loadUserProfile(session.user), timeoutMs, "LOAD_PROFILE");
+            await loadUserProfile(session.user);
           } catch (err) {
             console.error("[UserContext] loadUserProfile failed/hung:", err);
             if (!shouldCommitProfileError()) {
@@ -242,6 +319,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           devOnlyAuthLog('ℹ️  No active session');
+          setAppUser(null);
+          setError(null);
+          setProfileStatus('idle');
         }
       } catch (err) {
         // Silently ignore AbortError (expected on unmount/navigation)
@@ -293,11 +373,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             devOnlyAuthLog('⏳ Rehydration grace: delaying profile load by', delayMs, 'ms');
             await new Promise(resolve => setTimeout(resolve, delayMs));
           }
-          const timeoutMs = getProfileTimeoutMs();
-          if (timeoutMs > BASE_PROFILE_TIMEOUT_MS) {
-            devOnlyAuthLog('⏳ Rehydration grace: extending profile timeout to', timeoutMs, 'ms');
-          }
-          await withTimeout(loadUserProfile(session.user), timeoutMs, "LOAD_PROFILE");
+          await loadUserProfile(session.user);
           if (rehydratingRef.current) {
             setLoading(false);
             rehydratingRef.current = false;
@@ -321,6 +397,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           rehydratingRef.current = true;
           setLoading(true);
           setAppUser(null);
+          setError(null);
+          setProfileStatus('rehydrating');
           const delayMs = getRehydrationDelayMs();
           if (delayMs > 0) {
             rehydrationTimeoutRef.current = setTimeout(() => {
@@ -328,6 +406,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               if (authUserRef.current) return;
               rehydratingRef.current = false;
               setLoading(false);
+              setProfileStatus('idle');
             }, delayMs);
           }
           return;
@@ -335,6 +414,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
         rehydratingRef.current = false;
         setAppUser(null);
+        setError(null);
+        setProfileStatus('idle');
+        setLoading(false);
         // If we lose session while in the authenticated app area, force navigation to login.
         // This prevents the UI from getting stuck in a half-authenticated loading state.
         if (
@@ -374,8 +456,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         appUser,
         loading,
         error,
+        profileStatus,
         refreshProfile,
-        isProfileReady: !!appUser && !loading && !error,
+        isProfileReady: profileStatus === 'ready',
         authReady
       }}
     >
