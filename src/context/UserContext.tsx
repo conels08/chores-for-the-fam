@@ -48,8 +48,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const pathnameRef = useRef<string | null>(null);
   const redirectedForSessionLossRef = useRef(false);
   const authReadyRef = useRef(false);
+  const authUserRef = useRef<User | null>(null);
   const hadSessionRef = useRef(false);
   const lastVisibleAtRef = useRef<number>(Date.now());
+  const rehydrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rehydratingRef = useRef(false);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -58,6 +61,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     authReadyRef.current = authReady;
   }, [authReady]);
+
+  useEffect(() => {
+    authUserRef.current = authUser;
+  }, [authUser]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -266,6 +273,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       if (!mountedRef.current) return;
 
+      if (rehydrationTimeoutRef.current) {
+        clearTimeout(rehydrationTimeoutRef.current);
+        rehydrationTimeoutRef.current = null;
+      }
+
       setAuthUser(session?.user || null);
       setError(null);
 
@@ -273,6 +285,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         hadSessionRef.current = true;
         redirectedForSessionLossRef.current = false;
         try {
+          if (rehydratingRef.current) {
+            setLoading(true);
+          }
           const delayMs = getRehydrationDelayMs();
           if (delayMs > 0) {
             devOnlyAuthLog('⏳ Rehydration grace: delaying profile load by', delayMs, 'ms');
@@ -283,12 +298,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             devOnlyAuthLog('⏳ Rehydration grace: extending profile timeout to', timeoutMs, 'ms');
           }
           await withTimeout(loadUserProfile(session.user), timeoutMs, "LOAD_PROFILE");
+          if (rehydratingRef.current) {
+            setLoading(false);
+            rehydratingRef.current = false;
+          }
         } catch (err) {
           console.error("[UserContext] loadUserProfile failed/hung:", err);
           if (!shouldCommitProfileError()) {
             devOnlyAuthLog('⏳ Skipping timeout error during rehydration grace window');
             return;
           }
+          rehydratingRef.current = false;
           profileRequestIdRef.current += 1;
           setAppUser(null);
           setError("Session sync timed out. Please try again.");
@@ -296,6 +316,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       } else {
+        const inGraceWindow = isInRehydrationGraceWindow();
+        if (hadSessionRef.current && inGraceWindow) {
+          rehydratingRef.current = true;
+          setLoading(true);
+          setAppUser(null);
+          const delayMs = getRehydrationDelayMs();
+          if (delayMs > 0) {
+            rehydrationTimeoutRef.current = setTimeout(() => {
+              if (!mountedRef.current) return;
+              if (authUserRef.current) return;
+              rehydratingRef.current = false;
+              setLoading(false);
+            }, delayMs);
+          }
+          return;
+        }
+
+        rehydratingRef.current = false;
         setAppUser(null);
         // If we lose session while in the authenticated app area, force navigation to login.
         // This prevents the UI from getting stuck in a half-authenticated loading state.
@@ -318,6 +356,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return () => {
       devOnlyAuthLog('🔌 Detaching onAuthStateChange listener');
       mountedRef.current = false;
+      if (rehydrationTimeoutRef.current) {
+        clearTimeout(rehydrationTimeoutRef.current);
+        rehydrationTimeoutRef.current = null;
+      }
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
