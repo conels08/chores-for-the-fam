@@ -192,8 +192,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             resolve('timeout');
           }, timeoutMs);
         });
-        const raceResult = await Promise.race([
-          profilePromise.then(() => 'resolved'),
+        const raceResult = await Promise.race<Awaited<ReturnType<typeof getProfileWithFamily>> | 'timeout'>([
+          profilePromise,
           timeoutPromise
         ]);
         if (raceResult === 'timeout') {
@@ -213,9 +213,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           } else {
             devOnlyAuthLog('🧊 Timeout result ignored (stale)', { requestId });
           }
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          return;
         }
 
-        const profileWithFamily = await profilePromise;
+        const profileWithFamily = raceResult;
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
@@ -388,6 +392,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!mountedRef.current) return;
 
         setSessionReady(true);
+        setAuthReady(true);
         setAuthUser(session?.user || null);
         if (session?.user) {
           hadSessionRef.current = true;
@@ -456,6 +461,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setAuthUser(session.user);
         hadSessionRef.current = true;
         redirectedForSessionLossRef.current = false;
+        const sameUser = authUserRef.current?.id === session.user.id;
+        const profileReady = profileStatusRef.current === 'ready';
+        if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && sameUser && profileReady) {
+          devOnlyAuthLog('↩️ Auth state refreshed; profile already ready, skipping reload', { event });
+          if (rehydrationStatusRef.current === 'rehydrating') {
+            endRehydration('auth-state-skip');
+          }
+          return;
+        }
         try {
           if (rehydrationStatusRef.current === 'rehydrating') {
             setLoading(true);
