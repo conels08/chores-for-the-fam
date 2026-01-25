@@ -21,6 +21,9 @@ Open http://localhost:3000
 - `src/lib/database` – data access for chores, assignments, points, etc.
 - `src/lib/supabase` – Supabase helpers and types
 - `src/lib/utils.ts` – shared utilities
+- `supabase_schema_chores.sql` – database schema + RLS for ChoreSpace
+- `PROJECT_INTENT.md` – product goals and constraints
+- `IMPLEMENTATION_SUMMARY.md` – build notes and feature summary
 
 ## Supabase
 
