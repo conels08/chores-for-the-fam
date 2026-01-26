@@ -3,6 +3,10 @@
 ## Overview
 Successfully wired Families + Profiles into the app using Supabase, including role-based access control and user profile management.
 
+## RLS Policy Audit (Issue #13)
+- Tightened chore, assignment, and completion policies to enforce same-family access for admins and assignees.
+- Added explicit RLS policies for `families` and `profiles` to scope reads to family members and restrict updates to admins/self without role or family changes.
+
 ## Files Created
 
 ### Database Layer
