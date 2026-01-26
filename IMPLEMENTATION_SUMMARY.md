@@ -132,3 +132,4 @@ The implementation assumes the following Supabase schema exists:
 **Row Level Security (RLS)**
 - Enabled on both tables
 - Appropriate policies for read/write access
+- Family-scoped, role-aware policies for chores, assignments, completions, families, and profiles

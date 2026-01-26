@@ -82,9 +82,95 @@ CREATE TRIGGER update_chores_updated_at
 -- =====================================================
 
 -- Enable RLS on all tables
+ALTER TABLE public.families ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chore_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chore_completions ENABLE ROW LEVEL SECURITY;
+
+-- =====================================================
+-- FAMILIES RLS POLICIES
+-- =====================================================
+
+-- Family members can read their own family record
+CREATE POLICY "families_select_member" ON public.families
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.family_id = families.id
+    )
+  );
+
+-- Admins can update their family record
+CREATE POLICY "families_update_admin" ON public.families
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.family_id = families.id
+        AND p.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.family_id = families.id
+        AND p.role = 'admin'
+    )
+  );
+
+-- =====================================================
+-- PROFILES RLS POLICIES
+-- =====================================================
+
+-- Users can read their own profile
+CREATE POLICY "profiles_select_own" ON public.profiles
+  FOR SELECT USING (id = auth.uid());
+
+-- Admins can read profiles within their family
+CREATE POLICY "profiles_select_family_admin" ON public.profiles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles admin_p
+      WHERE admin_p.id = auth.uid()
+        AND admin_p.role = 'admin'
+        AND admin_p.family_id = profiles.family_id
+    )
+  );
+
+-- Users can update their own profile (without changing role or family)
+CREATE POLICY "profiles_update_own" ON public.profiles
+  FOR UPDATE USING (id = auth.uid())
+  WITH CHECK (
+    id = auth.uid()
+    AND family_id = (
+      SELECT p.family_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+    AND role = (
+      SELECT p.role FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  );
+
+-- Admins can update profiles within their family
+CREATE POLICY "profiles_update_family_admin" ON public.profiles
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles admin_p
+      WHERE admin_p.id = auth.uid()
+        AND admin_p.role = 'admin'
+        AND admin_p.family_id = profiles.family_id
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles admin_p
+      WHERE admin_p.id = auth.uid()
+        AND admin_p.role = 'admin'
+        AND admin_p.family_id = profiles.family_id
+    )
+  );
 
 -- =====================================================
 -- CHORES RLS POLICIES
@@ -101,7 +187,8 @@ CREATE POLICY "chores_select_admin" ON public.chores
 
 CREATE POLICY "chores_insert_admin" ON public.chores
   FOR INSERT WITH CHECK (
-    auth.uid() IN (
+    created_by = auth.uid()
+    AND auth.uid() IN (
       SELECT p.id FROM public.profiles p 
       WHERE p.family_id = chores.family_id AND p.role = 'admin'
     )
@@ -109,6 +196,12 @@ CREATE POLICY "chores_insert_admin" ON public.chores
 
 CREATE POLICY "chores_update_admin" ON public.chores
   FOR UPDATE USING (
+    auth.uid() IN (
+      SELECT p.id FROM public.profiles p 
+      WHERE p.family_id = chores.family_id AND p.role = 'admin'
+    )
+  )
+  WITH CHECK (
     auth.uid() IN (
       SELECT p.id FROM public.profiles p 
       WHERE p.family_id = chores.family_id AND p.role = 'admin'
@@ -126,9 +219,13 @@ CREATE POLICY "chores_delete_admin" ON public.chores
 -- Members and children can read chores assigned to them
 CREATE POLICY "chores_select_assigned" ON public.chores
   FOR SELECT USING (
-    auth.uid() IN (
-      SELECT ca.assignee_profile_id FROM public.chore_assignments ca
+    EXISTS (
+      SELECT 1
+      FROM public.chore_assignments ca
+      JOIN public.profiles p ON p.id = ca.assignee_profile_id
       WHERE ca.chore_id = chores.id
+        AND p.id = auth.uid()
+        AND p.family_id = chores.family_id
     )
   );
 
@@ -153,6 +250,12 @@ CREATE POLICY "assignments_insert_admin" ON public.chore_assignments
       JOIN public.chores c ON c.family_id = p.family_id
       WHERE p.role = 'admin' AND c.id = chore_assignments.chore_id
     )
+    AND EXISTS (
+      SELECT 1 FROM public.chores c
+      JOIN public.profiles assignee_p ON assignee_p.id = chore_assignments.assignee_profile_id
+      WHERE c.id = chore_assignments.chore_id
+        AND assignee_p.family_id = c.family_id
+    )
   );
 
 CREATE POLICY "assignments_update_admin" ON public.chore_assignments
@@ -161,6 +264,19 @@ CREATE POLICY "assignments_update_admin" ON public.chore_assignments
       SELECT p.id FROM public.profiles p 
       JOIN public.chores c ON c.family_id = p.family_id
       WHERE p.role = 'admin' AND c.id = chore_assignments.chore_id
+    )
+  )
+  WITH CHECK (
+    auth.uid() IN (
+      SELECT p.id FROM public.profiles p 
+      JOIN public.chores c ON c.family_id = p.family_id
+      WHERE p.role = 'admin' AND c.id = chore_assignments.chore_id
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.chores c
+      JOIN public.profiles assignee_p ON assignee_p.id = chore_assignments.assignee_profile_id
+      WHERE c.id = chore_assignments.chore_id
+        AND assignee_p.family_id = c.family_id
     )
   );
 
@@ -175,14 +291,26 @@ CREATE POLICY "assignments_delete_admin" ON public.chore_assignments
 
 -- Members and children can read their own assignments
 CREATE POLICY "assignments_select_own" ON public.chore_assignments
-  FOR SELECT USING (assignee_profile_id = auth.uid());
+  FOR SELECT USING (
+    assignee_profile_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.chores c
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE c.id = chore_assignments.chore_id
+        AND c.family_id = p.family_id
+    )
+  );
 
 -- Members and children can read assignments for chores they're assigned to (for completion)
 CREATE POLICY "assignments_select_for_completion" ON public.chore_assignments
   FOR SELECT USING (
     assignee_profile_id = auth.uid()
-    OR auth.uid() IN (
-      SELECT c.created_by FROM public.chores c WHERE c.id = chore_assignments.chore_id
+    OR EXISTS (
+      SELECT 1 FROM public.chores c
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE c.id = chore_assignments.chore_id
+        AND c.created_by = auth.uid()
+        AND p.family_id = c.family_id
     )
   );
 
@@ -214,7 +342,16 @@ CREATE POLICY "completions_delete_admin" ON public.chore_completions
 
 -- Members and children can read their own completions
 CREATE POLICY "completions_select_own" ON public.chore_completions
-  FOR SELECT USING (completed_by = auth.uid());
+  FOR SELECT USING (
+    completed_by = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.chore_assignments ca
+      JOIN public.chores c ON c.id = ca.chore_id
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE ca.id = chore_completions.assignment_id
+        AND p.family_id = c.family_id
+    )
+  );
 
 -- Members and children can insert completions only for their own assignments
 CREATE POLICY "completions_insert_own" ON public.chore_completions
@@ -223,6 +360,13 @@ CREATE POLICY "completions_insert_own" ON public.chore_completions
     AND assignment_id IN (
       SELECT ca.id FROM public.chore_assignments ca
       WHERE ca.assignee_profile_id = auth.uid()
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.chore_assignments ca
+      JOIN public.chores c ON c.id = ca.chore_id
+      JOIN public.profiles p ON p.id = auth.uid()
+      WHERE ca.id = chore_completions.assignment_id
+        AND p.family_id = c.family_id
     )
   );
 
