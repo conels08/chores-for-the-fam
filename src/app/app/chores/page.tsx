@@ -70,6 +70,12 @@ export default function ChoresPage() {
     }
   }, [appUser, loadChores, loadPoints]);
 
+  useEffect(() => {
+    if (!userLoading && !appUser) {
+      setLoading(false);
+    }
+  }, [userLoading, appUser]);
+
   const handleCompleteChore = async (assignmentId: string) => {
     if (!appUser) return;
     if (!assignmentId) return;
