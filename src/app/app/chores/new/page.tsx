@@ -44,8 +44,14 @@ export default function NewChorePage() {
   }, [appUser]);
 
   useEffect(() => {
-    if (!appUser) return;
-    if (appUser.role !== 'admin') return;
+    if (!appUser) {
+      setLoading(false);
+      return;
+    }
+    if (appUser.role !== 'admin') {
+      setLoading(false);
+      return;
+    }
     loadFamilyMembers();
   }, [appUser, loadFamilyMembers]);
 
