@@ -133,3 +133,4 @@ The implementation assumes the following Supabase schema exists:
 - Enabled on both tables
 - Appropriate policies for read/write access
 - Family-scoped, role-aware policies for chores, assignments, completions, families, and profiles
+- Write paths include stricter checks (e.g., created_by ownership and family-scoped updates)
