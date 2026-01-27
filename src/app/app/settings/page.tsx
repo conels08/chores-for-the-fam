@@ -19,18 +19,11 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (!userLoading) {
-      if (!appUser) {
-        router.push('/app');
-        return;
-      } else if (appUser.role !== 'admin') {
-        router.push('/app');
-        return;
-      } else {
-        setFamilyName(appUser.family_name);
-      }
-    }
-  }, [appUser, userLoading, router]);
+    if (userLoading) return;
+    if (!appUser) return;
+    if (appUser.role !== 'admin') return;
+    setFamilyName(appUser.family_name);
+  }, [appUser, userLoading]);
 
   const handleSave = async () => {
     if (!appUser) return;

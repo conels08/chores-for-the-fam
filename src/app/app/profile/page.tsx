@@ -19,15 +19,10 @@ export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (!userLoading) {
-      if (!appUser) {
-        router.push('/app');
-        return;
-      } else {
-        setDisplayName(appUser.display_name || '');
-      }
-    }
-  }, [appUser, userLoading, router]);
+    if (userLoading) return;
+    if (!appUser) return;
+    setDisplayName(appUser.display_name || '');
+  }, [appUser, userLoading]);
 
   const handleSave = async () => {
     if (!appUser) return;

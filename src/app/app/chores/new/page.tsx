@@ -44,15 +44,10 @@ export default function NewChorePage() {
   }, [appUser]);
 
   useEffect(() => {
-    if (appUser?.role !== 'admin') {
-      router.replace('/app/chores');
-      return;
-    }
-
-    if (appUser) {
-      loadFamilyMembers();
-    }
-  }, [appUser, router, loadFamilyMembers]);
+    if (!appUser) return;
+    if (appUser.role !== 'admin') return;
+    loadFamilyMembers();
+  }, [appUser, loadFamilyMembers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
