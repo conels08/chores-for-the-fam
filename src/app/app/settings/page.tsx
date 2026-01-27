@@ -73,7 +73,26 @@ export default function SettingsPage() {
   }
 
   if (!appUser || appUser.role !== 'admin') {
-    return null;
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 text-center">
+          <h2 className="text-lg font-semibold mb-2">Admin Access Required</h2>
+          <p className="text-muted-foreground mb-4">
+            This page is only available to family admins. If you believe this is a mistake, contact an admin.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            {!appUser && (
+              <Button variant="secondary" onClick={() => router.push('/login')}>
+                Go to Login
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => router.push('/app')}>
+              Back to Dashboard
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (

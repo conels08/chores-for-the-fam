@@ -133,8 +133,45 @@ export default function NewChorePage() {
     );
   }
 
-  if (!appUser || appUser.role !== 'admin') {
-    return null; // Will redirect in useEffect
+  if (!appUser) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-2xl mx-auto text-center">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Sign in required</h2>
+            <p className="text-muted-foreground mb-4">
+              Please sign in to create a new chore.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="secondary" onClick={() => router.push('/login')}>
+                Go to Login
+              </Button>
+              <Button variant="ghost" onClick={() => router.push('/app/chores')}>
+                Back to Chores
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (appUser.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-2xl mx-auto text-center">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Admin access required</h2>
+            <p className="text-muted-foreground mb-4">
+              Only admins can create chores for the family. Ask an admin to add a new chore.
+            </p>
+            <Button variant="secondary" onClick={() => router.push('/app/chores')}>
+              Back to Chores
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
