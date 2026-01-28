@@ -157,7 +157,20 @@ export default function ChoresPage() {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-muted-foreground">Please log in to view your chores.</p>
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Sign in required</h2>
+            <p className="text-muted-foreground mb-4">
+              Please sign in to view your chores.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="secondary" onClick={() => router.push('/login')}>
+                Go to Login
+              </Button>
+              <Button variant="ghost" onClick={() => router.push('/app')}>
+                Back to Dashboard
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     );
