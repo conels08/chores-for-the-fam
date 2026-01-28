@@ -2,6 +2,16 @@
 
 ## 🚀 Quick Start Testing
 
+## ✅ Smoke Test: Auth Rehydration (Login → Dashboard → Profile → Tab Switch)
+
+Use this quick flow to verify core auth + profile loading behavior without a full E2E setup.
+
+1. Log in with a valid account.
+2. Confirm the dashboard loads and shows profile data (email, display name, role, family name).
+3. Open the Profile page (`/app/profile`) and confirm the same profile data loads.
+4. Switch to another browser tab for 10+ seconds, then return to the app tab.
+5. ✅ Expect the dashboard/profile data to remain visible without redirects, errors, or infinite loading.
+
 ### 1. Database Setup
 ```sql
 -- Run this in your Supabase SQL editor:
