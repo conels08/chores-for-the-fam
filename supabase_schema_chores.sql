@@ -455,11 +455,22 @@ CREATE POLICY "invites_update_admin" ON public.invites
     )
   )
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role = 'admin'
-        AND p.family_id = invites.family_id
+    (
+      role_hint = 'admin'
+      AND EXISTS (
+        SELECT 1 FROM public.families f
+        WHERE f.id = invites.family_id
+          AND f.created_by = auth.uid()
+      )
+    )
+    OR (
+      role_hint <> 'admin'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles p
+        WHERE p.id = auth.uid()
+          AND p.role = 'admin'
+          AND p.family_id = invites.family_id
+      )
     )
   );
 
