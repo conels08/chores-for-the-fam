@@ -38,6 +38,26 @@ CREATE TABLE IF NOT EXISTS public.chore_completions (
   notes text
 );
 
+-- Invites table - manage invites for family members
+CREATE TABLE IF NOT EXISTS public.invites (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  family_id uuid NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
+  email text,
+  type text NOT NULL DEFAULT 'adult' CHECK (type IN ('adult', 'kid')),
+  role text NOT NULL DEFAULT 'member',
+  role_hint text NOT NULL DEFAULT 'member' CHECK (role_hint IN ('admin', 'member', 'child')),
+  created_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  token_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours'),
+  accepted_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  accepted_at timestamptz,
+  revoked_at timestamptz,
+  UNIQUE (family_id, email),
+  UNIQUE (token_hash)
+);
+
 -- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
@@ -56,6 +76,12 @@ CREATE INDEX IF NOT EXISTS idx_chore_assignments_assigned_by ON public.chore_ass
 CREATE INDEX IF NOT EXISTS idx_chore_completions_assignment ON public.chore_completions (assignment_id);
 CREATE INDEX IF NOT EXISTS idx_chore_completions_completed_by ON public.chore_completions (completed_by);
 CREATE INDEX IF NOT EXISTS idx_chore_completions_date_desc ON public.chore_completions (completed_at DESC);
+
+-- Invites table indexes
+CREATE INDEX IF NOT EXISTS idx_invites_family_id ON public.invites (family_id);
+CREATE INDEX IF NOT EXISTS idx_invites_email ON public.invites (email);
+CREATE INDEX IF NOT EXISTS idx_invites_token_hash ON public.invites (token_hash);
+CREATE INDEX IF NOT EXISTS idx_invites_expires_at ON public.invites (expires_at);
 
 -- =====================================================
 -- TRIGGERS
@@ -77,6 +103,13 @@ CREATE TRIGGER update_chores_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Trigger for invites table
+DROP TRIGGER IF EXISTS update_invites_updated_at ON public.invites;
+CREATE TRIGGER update_invites_updated_at
+  BEFORE UPDATE ON public.invites
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
@@ -87,6 +120,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chore_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chore_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- FAMILIES RLS POLICIES
@@ -371,6 +405,87 @@ CREATE POLICY "completions_insert_own" ON public.chore_completions
   );
 
 -- =====================================================
+-- INVITES RLS POLICIES
+-- =====================================================
+
+-- Admins can read invites within their family
+CREATE POLICY "invites_select_admin" ON public.invites
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.role = 'admin'
+        AND p.family_id = invites.family_id
+    )
+  );
+
+-- Admins can create invites within their family
+CREATE POLICY "invites_insert_admin" ON public.invites
+  FOR INSERT WITH CHECK (
+    created_by = auth.uid()
+    AND (
+      (
+        role_hint = 'admin'
+        AND EXISTS (
+          SELECT 1 FROM public.families f
+          WHERE f.id = invites.family_id
+            AND f.created_by = auth.uid()
+        )
+      )
+      OR (
+        role_hint <> 'admin'
+        AND EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE p.id = auth.uid()
+            AND p.role = 'admin'
+            AND p.family_id = invites.family_id
+        )
+      )
+    )
+  );
+
+-- Admins can update invites within their family
+CREATE POLICY "invites_update_admin" ON public.invites
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.role = 'admin'
+        AND p.family_id = invites.family_id
+    )
+  )
+  WITH CHECK (
+    (
+      role_hint = 'admin'
+      AND EXISTS (
+        SELECT 1 FROM public.families f
+        WHERE f.id = invites.family_id
+          AND f.created_by = auth.uid()
+      )
+    )
+    OR (
+      role_hint <> 'admin'
+      AND EXISTS (
+        SELECT 1 FROM public.profiles p
+        WHERE p.id = auth.uid()
+          AND p.role = 'admin'
+          AND p.family_id = invites.family_id
+      )
+    )
+  );
+
+-- Admins can delete invites within their family
+CREATE POLICY "invites_delete_admin" ON public.invites
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.role = 'admin'
+        AND p.family_id = invites.family_id
+    )
+  );
+
+-- =====================================================
 -- HELPFUL VIEWS FOR POINTS TRACKING
 -- =====================================================
 
@@ -433,5 +548,6 @@ GRANT ALL ON ALL VIEWS IN SCHEMA public TO authenticated;
 COMMENT ON TABLE public.chores IS 'Core chore definitions that can be assigned to family members';
 COMMENT ON TABLE public.chore_assignments IS 'Junction table linking chores to assigned users (supports multi-assignee)';
 COMMENT ON TABLE public.chore_completions IS 'History ledger tracking chore completions with timestamps and notes';
+COMMENT ON TABLE public.invites IS 'Invitations for users to join a family';
 COMMENT ON VIEW public.user_points_summary IS 'Aggregated points summary per user for leaderboards and progress tracking';
 COMMENT ON VIEW public.chore_completion_history IS 'Detailed completion history with chore and user information for admin oversight';
