@@ -11,9 +11,12 @@ declare global {
   var __supabase__: SupabaseClient | undefined;
 }
 
-// Dev-only logging helper
+// Dev-only logging helper (opt-in via NEXT_PUBLIC_DEV_AUTH_LOG)
 const devLog = (...args: unknown[]) => {
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_PUBLIC_DEV_AUTH_LOG === 'true'
+  ) {
     console.log('[Supabase Auth]', ...args);
   }
 };
