@@ -15,10 +15,10 @@ This document tracks production readiness work. Check items off as they are comp
 ## UX and flow polish
 - [ ] Add empty states for new families and new users
 - [ ] Improve retry flows and offline/slow network handling
-- [ ] Confirm consistent loading and error UI across routes
+- [x] Confirm consistent loading and error UI across /app routes
 
 ## Testing and observability
-- [ ] Add smoke tests for login -> dashboard -> chores -> profile
+- [x] Add smoke test for login -> dashboard -> profile -> tab switch
 - [ ] Add policy tests for data access per role
 - [ ] Add error reporting (Sentry or similar) with minimal client logging
 
