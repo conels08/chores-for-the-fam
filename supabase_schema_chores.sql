@@ -43,12 +43,14 @@ CREATE TABLE IF NOT EXISTS public.invites (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id uuid NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
   email text,
+  type text NOT NULL DEFAULT 'adult' CHECK (type IN ('adult', 'kid')),
   role text NOT NULL DEFAULT 'member',
+  role_hint text NOT NULL DEFAULT 'member' CHECK (role_hint IN ('admin', 'member', 'child')),
   created_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
   token_hash text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  expires_at timestamptz,
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours'),
   accepted_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   accepted_at timestamptz,
   revoked_at timestamptz,
@@ -79,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_chore_completions_date_desc ON public.chore_compl
 CREATE INDEX IF NOT EXISTS idx_invites_family_id ON public.invites (family_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON public.invites (email);
 CREATE INDEX IF NOT EXISTS idx_invites_token_hash ON public.invites (token_hash);
+CREATE INDEX IF NOT EXISTS idx_invites_expires_at ON public.invites (expires_at);
 
 -- =====================================================
 -- TRIGGERS
@@ -420,11 +423,24 @@ CREATE POLICY "invites_select_admin" ON public.invites
 CREATE POLICY "invites_insert_admin" ON public.invites
   FOR INSERT WITH CHECK (
     created_by = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role = 'admin'
-        AND p.family_id = invites.family_id
+    AND (
+      (
+        role_hint = 'admin'
+        AND EXISTS (
+          SELECT 1 FROM public.families f
+          WHERE f.id = invites.family_id
+            AND f.created_by = auth.uid()
+        )
+      )
+      OR (
+        role_hint <> 'admin'
+        AND EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE p.id = auth.uid()
+            AND p.role = 'admin'
+            AND p.family_id = invites.family_id
+        )
+      )
     )
   );
 
