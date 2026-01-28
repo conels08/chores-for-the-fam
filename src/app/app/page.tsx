@@ -83,7 +83,24 @@ export default function AppDashboard() {
   }
 
   if (!appUser) {
-    return null;
+    return (
+      <div className="rounded-lg border border-muted p-6 text-center">
+        <h2 className="text-lg font-semibold mb-2">Profile Not Available</h2>
+        <p className="text-muted-foreground mb-4">
+          We couldn&apos;t load your profile details yet. Please try again or return to the login page.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="secondary" size="sm" onClick={refreshProfile}>
+            Retry
+          </Button>
+          <Link href="/login">
+            <Button variant="ghost" size="sm">
+              Go to Login
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -167,8 +184,8 @@ export default function AppDashboard() {
       ) : (
         <>
           {/* Points Overview */}
-          {myPoints && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {myPoints ? (
               <Card className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
@@ -185,8 +202,17 @@ export default function AppDashboard() {
                   {myPoints.total_points}
                 </div>
               </Card>
+            ) : (
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-2">Your Points</h2>
+                <p className="text-sm text-muted-foreground">
+                  No points tracked yet. Complete your first chore to start earning points.
+                </p>
+              </Card>
+            )}
 
-              {appUser.role === 'admin' && familyPoints.length > 0 && (
+            {appUser.role === 'admin' && (
+              familyPoints.length > 0 ? (
                 <Card className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
@@ -217,9 +243,16 @@ export default function AppDashboard() {
                     ))}
                   </div>
                 </Card>
-              )}
-            </div>
-          )}
+              ) : (
+                <Card className="p-6">
+                  <h2 className="text-xl font-semibold mb-2">Family Leaderboard</h2>
+                  <p className="text-sm text-muted-foreground">
+                    No family points yet. Assign chores to get the leaderboard started.
+                  </p>
+                </Card>
+              )
+            )}
+          </div>
         </>
       )}
 

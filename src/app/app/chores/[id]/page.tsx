@@ -443,30 +443,36 @@ export default function ChoreDetailsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {chore.assignments.map((assignment) => (
-                    <div key={assignment.id} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
-                          {assignment.assignee.display_name || assignment.assignee.email}
+                {chore.assignments.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-6">
+                    No one is assigned yet. Update the chore to add assignees.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {chore.assignments.map((assignment) => (
+                      <div key={assignment.id} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-primary" />
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">
+                            {assignment.assignee.display_name || assignment.assignee.email}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {assignment.assignee.role}
+                          </div>
+                        </div>
+                        <div className={`text-xs px-2 py-1 rounded-full ${
+                          assignment.assignee.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                          assignment.assignee.role === 'member' ? 'bg-green-100 text-green-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
                           {assignment.assignee.role}
                         </div>
                       </div>
-                      <div className={`text-xs px-2 py-1 rounded-full ${
-                        assignment.assignee.role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                        assignment.assignee.role === 'member' ? 'bg-green-100 text-green-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
-                        {assignment.assignee.role}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

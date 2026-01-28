@@ -70,6 +70,12 @@ export default function ChoresPage() {
     }
   }, [appUser, loadChores, loadPoints]);
 
+  useEffect(() => {
+    if (!userLoading && !appUser) {
+      setLoading(false);
+    }
+  }, [userLoading, appUser]);
+
   const handleCompleteChore = async (assignmentId: string) => {
     if (!appUser) return;
     if (!assignmentId) return;
@@ -120,6 +126,16 @@ export default function ChoresPage() {
     return 'upcoming';
   };
 
+  const incompleteMyChores = myChores.filter((chore) => {
+    const myAssignment =
+      chore.assignments?.find(a =>
+        a.assignee_profile_id === appUser?.id ||
+        a.assignee?.id === appUser?.id
+      ) ?? null;
+    const isCompleted = (myAssignment?.completions?.length ?? 0) > 0;
+    return !isCompleted;
+  });
+
   if (userLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -141,7 +157,20 @@ export default function ChoresPage() {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-muted-foreground">Please log in to view your chores.</p>
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Sign in required</h2>
+            <p className="text-muted-foreground mb-4">
+              Please sign in to view your chores.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="secondary" onClick={() => router.push('/login')}>
+                Go to Login
+              </Button>
+              <Button variant="ghost" onClick={() => router.push('/app')}>
+                Back to Dashboard
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -238,9 +267,17 @@ export default function ChoresPage() {
                 </p>
               </CardContent>
             </Card>
+          ) : incompleteMyChores.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">
+                  You&apos;re all caught up! New chores will appear here when they&apos;re assigned.
+                </p>
+              </CardContent>
+            </Card>
           ) : (
             <div className="space-y-4">
-              {myChores.map((chore) => {
+              {incompleteMyChores.map((chore) => {
                 const dueDateInfo = formatDueDate(chore.due_date);
                 const status = getChoreStatus(chore);
                 const myAssignment =
@@ -250,8 +287,6 @@ export default function ChoresPage() {
                   ) ?? null;
                 const assignmentId = myAssignment?.id ?? '';
                 const isCompleted = (myAssignment?.completions?.length ?? 0) > 0;
-
-                if (isCompleted) return null;
                 
                 return (
                   <Card key={chore.id} className="hover:shadow-md transition-shadow">
@@ -314,54 +349,64 @@ export default function ChoresPage() {
         </div>
 
         {/* All Chores Section (Admin Only) */}
-        {isAdmin && allChores.length > 0 && (
+        {isAdmin && (
           <div>
             <h2 className="text-xl font-semibold mb-4">All Family Chores</h2>
-            <div className="space-y-4">
-              {allChores.map((chore) => (
-                <Card key={chore.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{chore.title}</h3>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Star className="w-4 h-4 text-yellow-500" />
-                            <span>{chore.points}</span>
-                          </div>
-                          {chore.due_date && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Calendar className="w-4 h-4" />
-                              <span>{formatDueDate(chore.due_date)?.text}</span>
+            {allChores.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <p className="text-muted-foreground">
+                    No family chores yet. Create a chore to start assigning tasks.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {allChores.map((chore) => (
+                  <Card key={chore.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold">{chore.title}</h3>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Star className="w-4 h-4 text-yellow-500" />
+                              <span>{chore.points}</span>
                             </div>
+                            {chore.due_date && (
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Calendar className="w-4 h-4" />
+                                <span>{formatDueDate(chore.due_date)?.text}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {chore.description && (
+                            <p className="text-muted-foreground text-sm mb-2">
+                              {chore.description}
+                            </p>
                           )}
+                          
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Users className="w-4 h-4" />
+                            <span>
+                              Assigned to: {chore.assignments
+                                .map(a => a.assignee.display_name || a.assignee.id.slice(0, 8))
+                                .join(', ')
+                              }
+                            </span>
+                          </div>
                         </div>
                         
-                        {chore.description && (
-                          <p className="text-muted-foreground text-sm mb-2">
-                            {chore.description}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Users className="w-4 h-4" />
-                          <span>
-                            Assigned to: {chore.assignments
-                              .map(a => a.assignee.display_name || a.assignee.id.slice(0, 8))
-                              .join(', ')
-                            }
-                          </span>
-                        </div>
+                        <Button variant="ghost" onClick={() => router.push(`/app/chores/${chore.id}`)} className="ml-4">
+                          View Details
+                        </Button>
                       </div>
-                      
-                      <Button variant="ghost" onClick={() => router.push(`/app/chores/${chore.id}`)} className="ml-4">
-                        View Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

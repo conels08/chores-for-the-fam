@@ -19,15 +19,10 @@ export default function ProfilePage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (!userLoading) {
-      if (!appUser) {
-        router.push('/app');
-        return;
-      } else {
-        setDisplayName(appUser.display_name || '');
-      }
-    }
-  }, [appUser, userLoading, router]);
+    if (userLoading) return;
+    if (!appUser) return;
+    setDisplayName(appUser.display_name || '');
+  }, [appUser, userLoading]);
 
   const handleSave = async () => {
     if (!appUser) return;
@@ -64,7 +59,24 @@ export default function ProfilePage() {
   }
 
   if (!appUser) {
-    return null;
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 text-center">
+          <h2 className="text-lg font-semibold mb-2">Profile Unavailable</h2>
+          <p className="text-muted-foreground mb-4">
+            We couldn&apos;t load your profile details. Please sign in again or return to the dashboard.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Button variant="secondary" onClick={() => router.push('/login')}>
+              Go to Login
+            </Button>
+            <Button variant="ghost" onClick={() => router.push('/app')}>
+              Back to Dashboard
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
