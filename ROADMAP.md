@@ -22,6 +22,11 @@ This document tracks production readiness work. Check items off as they are comp
 - [ ] Add policy tests for data access per role
 - [ ] Add error reporting (Sentry or similar) with minimal client logging
 
+## Invites and onboarding
+- [x] Add invites schema + RLS (email + QR support, 24h expiry)
+- [ ] Build admin invite UI (email + QR, revoke)
+- [ ] Implement invite acceptance flow (adult setup + kid quick-join)
+
 ## Performance and scalability
 - [ ] Reduce redundant profile/points fetches
 - [ ] Audit and optimize database queries in `src/lib/database`
