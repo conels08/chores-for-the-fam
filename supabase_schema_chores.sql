@@ -536,6 +536,214 @@ WHERE c.family_id IN (
   SELECT p.family_id FROM public.profiles p WHERE p.id = auth.uid()
 );
 
+-- =====================================================
+-- INVITE ACCEPTANCE RPCs (SECURITY DEFINER)
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION public.validate_invite(p_token_hash text)
+RETURNS TABLE (
+  id uuid,
+  family_id uuid,
+  type text,
+  role_hint text,
+  email text,
+  expires_at timestamptz,
+  accepted_at timestamptz,
+  revoked_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_invite public.invites%ROWTYPE;
+BEGIN
+  SELECT * INTO v_invite
+  FROM public.invites
+  WHERE token_hash = p_token_hash;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invite not found';
+  END IF;
+
+  IF v_invite.revoked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite revoked';
+  END IF;
+
+  IF v_invite.accepted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite already accepted';
+  END IF;
+
+  IF v_invite.expires_at <= now() THEN
+    RAISE EXCEPTION 'Invite expired';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    v_invite.id,
+    v_invite.family_id,
+    v_invite.type,
+    v_invite.role_hint,
+    v_invite.email,
+    v_invite.expires_at,
+    v_invite.accepted_at,
+    v_invite.revoked_at;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.accept_invite_adult(
+  p_token_hash text,
+  p_display_name text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_invite public.invites%ROWTYPE;
+  v_user_id uuid;
+  v_role text;
+  v_email text;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  SELECT * INTO v_invite
+  FROM public.invites
+  WHERE token_hash = p_token_hash
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invite not found';
+  END IF;
+
+  IF v_invite.type <> 'adult' THEN
+    RAISE EXCEPTION 'Invite type mismatch';
+  END IF;
+
+  IF v_invite.revoked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite revoked';
+  END IF;
+
+  IF v_invite.accepted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite already accepted';
+  END IF;
+
+  IF v_invite.expires_at <= now() THEN
+    RAISE EXCEPTION 'Invite expired';
+  END IF;
+
+  IF v_invite.role_hint IN ('admin', 'member') THEN
+    v_role := v_invite.role_hint;
+  ELSE
+    v_role := 'member';
+  END IF;
+
+  SELECT email INTO v_email
+  FROM auth.users
+  WHERE id = v_user_id;
+
+  INSERT INTO public.profiles (id, email, display_name, role, family_id)
+  VALUES (v_user_id, v_email, p_display_name, v_role, v_invite.family_id)
+  ON CONFLICT (id) DO UPDATE
+  SET
+    email = EXCLUDED.email,
+    display_name = EXCLUDED.display_name,
+    role = EXCLUDED.role,
+    family_id = EXCLUDED.family_id;
+
+  UPDATE public.invites
+  SET accepted_at = now(),
+      accepted_by = v_user_id
+  WHERE id = v_invite.id
+    AND accepted_at IS NULL
+    AND revoked_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invite already consumed';
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.accept_invite_kid(
+  p_token_hash text,
+  p_kid_name text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_invite public.invites%ROWTYPE;
+  v_admin_id uuid;
+  v_child_id uuid;
+  v_email text;
+BEGIN
+  v_admin_id := auth.uid();
+  IF v_admin_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  SELECT * INTO v_invite
+  FROM public.invites
+  WHERE token_hash = p_token_hash
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invite not found';
+  END IF;
+
+  IF v_invite.type <> 'kid' THEN
+    RAISE EXCEPTION 'Invite type mismatch';
+  END IF;
+
+  IF v_invite.revoked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite revoked';
+  END IF;
+
+  IF v_invite.accepted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Invite already accepted';
+  END IF;
+
+  IF v_invite.expires_at <= now() THEN
+    RAISE EXCEPTION 'Invite expired';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = v_admin_id
+      AND p.role = 'admin'
+      AND p.family_id = v_invite.family_id
+  ) THEN
+    RAISE EXCEPTION 'Admin access required';
+  END IF;
+
+  v_child_id := gen_random_uuid();
+  v_email := COALESCE(v_invite.email, concat('kid+', v_child_id, '@chore.space'));
+
+  INSERT INTO public.profiles (id, email, display_name, role, family_id)
+  VALUES (v_child_id, v_email, p_kid_name, 'child', v_invite.family_id);
+
+  UPDATE public.invites
+  SET accepted_at = now(),
+      accepted_by = v_admin_id
+  WHERE id = v_invite.id
+    AND accepted_at IS NULL
+    AND revoked_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invite already consumed';
+  END IF;
+
+  RETURN v_child_id;
+END;
+$$;
+
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;

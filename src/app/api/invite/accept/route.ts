@@ -1,0 +1,66 @@
+import { NextResponse } from 'next/server';
+import crypto from 'crypto';
+
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+
+const hashInviteToken = (token: string) =>
+  crypto.createHash('sha256').update(token).digest('hex');
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const token = typeof body?.token === 'string' ? body.token.trim() : '';
+  const type = body?.type;
+  const displayName = typeof body?.displayName === 'string' ? body.displayName.trim() : '';
+  const kidName = typeof body?.kidName === 'string' ? body.kidName.trim() : '';
+
+  if (!token) {
+    return NextResponse.json({ error: 'Invite token is required.' }, { status: 400 });
+  }
+
+  if (type !== 'adult' && type !== 'kid') {
+    return NextResponse.json({ error: 'Invite type is required.' }, { status: 400 });
+  }
+
+  const supabase = createSupabaseServerClient();
+  const tokenHash = hashInviteToken(token);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'You must be signed in to accept this invite.' }, { status: 401 });
+  }
+
+  if (type === 'adult') {
+    if (!displayName) {
+      return NextResponse.json({ error: 'Display name is required.' }, { status: 400 });
+    }
+
+    const { error } = await supabase.rpc('accept_invite_adult', {
+      token_hash: tokenHash,
+      display_name: displayName,
+    });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  if (!kidName) {
+    return NextResponse.json({ error: 'Kid name is required.' }, { status: 400 });
+  }
+
+  const { error } = await supabase.rpc('accept_invite_kid', {
+    token_hash: tokenHash,
+    kid_name: kidName,
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ success: true });
+}
