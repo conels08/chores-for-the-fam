@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const tokenHash = hashInviteToken(token);
 
   const { data, error } = await supabase.rpc('validate_invite', {
-    token_hash: tokenHash,
+    p_token_hash: tokenHash,
   });
 
   if (error) {
