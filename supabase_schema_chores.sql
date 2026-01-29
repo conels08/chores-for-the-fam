@@ -563,19 +563,19 @@ BEGIN
   WHERE token_hash = p_token_hash;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Invite not found';
+    RETURN;
   END IF;
 
   IF v_invite.revoked_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Invite revoked';
+    RETURN;
   END IF;
 
   IF v_invite.accepted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Invite already accepted';
+    RETURN;
   END IF;
 
   IF v_invite.expires_at <= now() THEN
-    RAISE EXCEPTION 'Invite expired';
+    RETURN;
   END IF;
 
   RETURN QUERY

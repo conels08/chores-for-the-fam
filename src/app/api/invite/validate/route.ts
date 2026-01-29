@@ -22,13 +22,13 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: 'Invite invalid or expired.' }, { status: 400 });
   }
 
   const invite = Array.isArray(data) ? data[0] : data;
 
   if (!invite) {
-    return NextResponse.json({ error: 'Invite not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Invite invalid or expired.' }, { status: 400 });
   }
 
   return NextResponse.json({ invite });
