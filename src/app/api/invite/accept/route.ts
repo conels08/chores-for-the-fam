@@ -25,10 +25,11 @@ export async function POST(request: Request) {
   const tokenHash = hashInviteToken(token);
 
   const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (process.env.NODE_ENV === 'development') {
-    console.log('accept route user:', userData?.user?.id ?? null, userErr?.message ?? null);
-  }
   const user = userData?.user ?? null;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('accept route user:', user?.id ?? null, userErr?.message ?? null);
+  }
 
   if (!user) {
     return NextResponse.json({ error: 'You must be signed in to accept this invite.' }, { status: 401 });
