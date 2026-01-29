@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     }
 
     const { error } = await supabase.rpc('accept_invite_adult', {
-      token_hash: tokenHash,
-      display_name: displayName,
+      p_token_hash: tokenHash,
+      p_display_name: displayName,
     });
 
     if (error) {
@@ -60,8 +60,8 @@ export async function POST(request: Request) {
   }
 
   const { error } = await supabase.rpc('accept_invite_kid', {
-    token_hash: tokenHash,
-    kid_name: kidName,
+    p_token_hash: tokenHash,
+    p_kid_name: kidName,
   });
 
   if (error) {
