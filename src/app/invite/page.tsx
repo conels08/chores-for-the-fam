@@ -27,7 +27,6 @@ function InvitePageContent() {
   const [displayName, setDisplayName] = useState('');
   const [kidName, setKidName] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const didValidateRef = useRef(false);
   const { authUser, appUser, loading: authLoading } = useUser();
 
   useEffect(() => {
@@ -37,8 +36,7 @@ function InvitePageContent() {
       return;
     }
 
-    if (didValidateRef.current) return;
-    didValidateRef.current = true;
+    const controller = new AbortController();
     let isActive = true;
 
     const validate = async () => {
@@ -49,6 +47,7 @@ function InvitePageContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
+          signal: controller.signal,
         });
         const payload = await response.json();
 
@@ -72,6 +71,7 @@ function InvitePageContent() {
 
     return () => {
       isActive = false;
+      controller.abort();
     };
   }, [token]);
 
