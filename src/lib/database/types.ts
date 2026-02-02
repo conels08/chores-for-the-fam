@@ -58,6 +58,7 @@ export interface DatabaseChoreAssignment {
   id: string;
   chore_id: string;
   assignee_profile_id: string;
+  assignee_id?: string;
   assigned_by: string;
   assigned_at: string;
 }
