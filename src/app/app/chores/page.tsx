@@ -391,7 +391,11 @@ export default function ChoresPage() {
                             <Users className="w-4 h-4" />
                             <span>
                               Assigned to: {chore.assignments
-                                .map(a => a.assignee.display_name || a.assignee.id.slice(0, 8))
+                                .map(a =>
+                                  a.assignee?.display_name ??
+                                  a.assignee_id?.slice(0, 8) ??
+                                  'Unassigned'
+                                )
                                 .join(', ')
                               }
                             </span>
