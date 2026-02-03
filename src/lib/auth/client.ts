@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,25 +23,20 @@ const devLog = (...args: unknown[]) => {
 
 // Create or retrieve cached client instance
 const getSupabaseClient = (): SupabaseClient => {
-  if (typeof window !== 'undefined') {
-    // Client-side: check globalThis cache
-    if (!globalThis.__supabase__) {
-      devLog('🔧 Creating new browser Supabase client (singleton)');
-      globalThis.__supabase__ = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-        },
-      });
-    } else {
-      devLog('✅ Reusing existing browser Supabase client');
-    }
-    return globalThis.__supabase__;
+  // Client-side: check globalThis cache
+  if (!globalThis.__supabase__) {
+    devLog('🔧 Creating new browser Supabase client (singleton)');
+    globalThis.__supabase__ = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+  } else {
+    devLog('✅ Reusing existing browser Supabase client');
   }
-  // Server-side or SSR: create new instance
-  devLog('🖥️  Creating server Supabase client');
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return globalThis.__supabase__;
 };
 
 export const supabase = getSupabaseClient();

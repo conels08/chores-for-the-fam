@@ -29,3 +29,8 @@ export function createSupabaseServerClient(cookieStore: ReturnType<typeof cookie
     },
   });
 }
+
+// Backwards-compatible alias for older route handlers.
+export function createClient(cookieStore: ReturnType<typeof cookies> = cookies()) {
+  return createSupabaseServerClient(cookieStore);
+}
